@@ -567,7 +567,6 @@ local Debris = game:GetService("Debris")
 
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
-
 local Network = require(game.ReplicatedStorage.Modules.Core.Net)
 
 local TargetHistory = {}
@@ -575,6 +574,9 @@ local TargetHistory = {}
 local FOV = 200
 local HIGH_VEL_THRESHOLD = 250
 local TargetPartName = "Head"
+local SilentAimEnabled = false
+
+
 
 local function GetPlayerNames()
     local t = {}
@@ -586,35 +588,68 @@ local function GetPlayerNames()
     return t
 end
 
+CombatTab:Toggle({
+    Title = "Silent Aim",
+    Default = false,
+    Callback = function(v)
+        SilentAimEnabled = v
+    end
+})
+
+CombatTab:Slider({
+    Title = "FOV Size",
+    Step = 1,
+    Value = {Min = 50, Max = 500, Default = FOV},
+    Callback = function(v)
+        FOV = v
+        fovCircle.Radius = v
+    end
+})
+
+CombatTab:Dropdown({
+    Title = "Target Part",
+    Values = {"Head","HumanoidRootPart"},
+    Multi = false,
+    Default = "Head",
+    Callback = function(v)
+        TargetPartName = v
+    end
+})
+
+CombatTab:Dropdown({
+    Title = "Save Friend",
+    Values = GetPlayerNames(),
+    Multi = true,
+    Default = {},
+    Callback = function(selected)
+        for _, plr in pairs(Players:GetPlayers()) do
+            plr:SetAttribute("SilentAimIgnore", false)
+        end
+
+        for _, name in pairs(selected) do
+            local plr = Players:FindFirstChild(name)
+            if plr then
+                plr:SetAttribute("SilentAimIgnore", true)
+            end
+        end
+    end
+})
+
+
+
 local fovCircle = Drawing.new("Circle")
 fovCircle.Radius = FOV
 fovCircle.Thickness = 1
 fovCircle.Filled = false
 fovCircle.Color = Color3.fromRGB(255,255,255)
-fovCircle.Visible = true
+fovCircle.Visible = false
 
 local tracer = Drawing.new("Line")
 tracer.Thickness = 2
 tracer.Color = Color3.fromRGB(255,0,0)
 tracer.Visible = false
 
-local shotToggle = false
 
-local function CreateTracer(fromPos, toPos)
-    shotToggle = not shotToggle
-    local distance = (toPos - fromPos).Magnitude
-
-    local part = Instance.new("Part")
-    part.Size = Vector3.new(0.25, 0.25, distance)
-    part.CFrame = CFrame.new(fromPos, toPos) * CFrame.new(0, 0, -distance/2)
-    part.Anchored = true
-    part.CanCollide = false
-    part.Material = Enum.Material.Neon
-    part.Color = shotToggle and Color3.fromRGB(0,0,0) or Color3.fromRGB(255,255,255)
-    part.Parent = workspace
-
-    Debris:AddItem(part, 3)
-end
 
 local function GetDistanceStart(a, b)
     return (a - b).Magnitude
@@ -631,18 +666,13 @@ local function IsAlive(model)
     return hum and root and hum.Health > 0
 end
 
-local function IsBehindWall(startPos, endPos, ignore)
-    local ray = Ray.new(startPos, endPos - startPos)
-    local hit = workspace:FindPartOnRayWithIgnoreList(ray, ignore or {})
-    return hit ~= nil
-end
-
 local function GetClosestTarget()
     local closest = nil
     local dist = math.huge
 
     for _, v in pairs(Players:GetPlayers()) do
         if v ~= LocalPlayer and v.Character and IsAlive(v.Character) then
+            
             if not v:GetAttribute("SilentAimIgnore") then
                 local root = v.Character:FindFirstChild("HumanoidRootPart")
                 if root then
@@ -666,6 +696,13 @@ local function GetClosestTarget()
 end
 
 RunService.RenderStepped:Connect(function()
+    if not SilentAimEnabled then
+        fovCircle.Visible = false
+        tracer.Visible = false
+        return
+    end
+
+    fovCircle.Visible = true
     fovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
 
     local target = GetClosestTarget()
@@ -684,6 +721,8 @@ RunService.RenderStepped:Connect(function()
         tracer.Visible = false
     end
 end)
+
+
 
 local function solveQuadratic(A, B, C)
     local D = B^2 - 4*A*C
@@ -729,9 +768,15 @@ local function GetVelocity(target, pos)
     return (p2.pos - p1.pos) / dt
 end
 
+
+
 local OldSend
 OldSend = hookfunction(Network.send, function(...)
     local args = {...}
+
+    if not SilentAimEnabled then
+        return OldSend(...)
+    end
 
     if args[1] == "shoot_gun" then
         local target = GetClosestTarget()
@@ -769,14 +814,7 @@ OldSend = hookfunction(Network.send, function(...)
                     predictedPos = PredictPosition(targetPos, vel, t, gravity)
                 end
 
-                local ignore = {LocalPlayer.Character, target}
-                local behind = IsBehindWall(myPos, predictedPos, ignore)
-
-                if behind then
-                    args[3] = CFrame.new(math.huge, math.huge, math.huge)
-                else
-                    args[3] = CFrame.new(myPos, predictedPos)
-                end
+                args[3] = CFrame.new(myPos, predictedPos)
 
                 for _, v in pairs(args[4] or {}) do
                     for _, x in pairs(v) do
@@ -784,8 +822,6 @@ OldSend = hookfunction(Network.send, function(...)
                         x.Instance = part
                     end
                 end
-
-                CreateTracer(myPos, predictedPos)
             end
         end
     end
@@ -793,56 +829,7 @@ OldSend = hookfunction(Network.send, function(...)
     return OldSend(table.unpack(args))
 end)
 
-CombatTab:Toggle({
-    Title = "Show FOV",
-    Default = true,
-    Callback = function(state)
-        fovCircle.Visible = state
-    end
-})
 
-CombatTab:Slider({
-    Title = "FOV Size",
-    Step = 1,
-    Value = {
-        Min = 50,
-        Max = 500,
-        Default = FOV
-    },
-    Callback = function(v)
-        FOV = v
-        fovCircle.Radius = v
-    end
-})
-
-CombatTab:Dropdown({
-    Title = "Target Part",
-    Values = {"Head","HumanoidRootPart"},
-    Multi = false,
-    Default = "Head",
-    Callback = function(v)
-        TargetPartName = v
-    end
-})
-
-CombatTab:Dropdown({
-    Title = "Save Friend",
-    Values = GetPlayerNames(),
-    Multi = true,
-    Default = {},
-    Callback = function(selected)
-        for _, plr in pairs(Players:GetPlayers()) do
-            plr:SetAttribute("SilentAimIgnore", false)
-        end
-
-        for _, name in pairs(selected) do
-            local plr = Players:FindFirstChild(name)
-            if plr then
-                plr:SetAttribute("SilentAimIgnore", true)
-            end
-        end
-    end
-})    
 
 VisualTab:Toggle({
 	Title = 'Inventory Viewer',
