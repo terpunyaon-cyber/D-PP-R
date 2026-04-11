@@ -244,122 +244,55 @@ MainTab:Slider({
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
-local player = Players.LocalPlayer
-
-local character, humanoid, rootPart
-local originalPos = nil
-local isEvading = false
-
-local function setupCharacter(char)
-    character = char
-    humanoid = character:WaitForChild("Humanoid")
-    rootPart = character:WaitForChild("HumanoidRootPart")
-    isEvading = false
-    originalPos = nil
-end
-
-if player.Character then
-    setupCharacter(player.Character)
-end
-
-player.CharacterAdded:Connect(setupCharacter)
-
-getgenv().AntiAimAssiant = false
-getgenv().AutoAntiKill = false
-
-local AntiAimConnection
+local Client = Players.LocalPlayer
 local Char = require(game.ReplicatedStorage.Modules.Core.Char)
 
-local function startAntiAim()
-    if AntiAimConnection then return end
-    AntiAimConnection = RunService.Heartbeat:Connect(function()
-        if not getgenv().AntiAimAssiant then return end
-        local hum = Char.get_hum()
-        if hum and not hum:GetAttribute("HasBeenDowned") then
-            local root = Char.get_hrp()
-            if not root then return end
-            local A = root.Velocity
-            local B = root.AssemblyLinearVelocity
-            local C = root.AssemblyAngularVelocity
-            root.Velocity = Vector3.new(math.random(-100000,999999),math.random(-100000,999999),math.random(-100000,999999))
-            root.AssemblyLinearVelocity = Vector3.new(math.random(-100000,999999),math.random(-100000,999999),math.random(-100000,999999))
-            root.AssemblyAngularVelocity = Vector3.new(math.random(-100000,999999),math.random(-100000,999999),math.random(-100000,999999))
-            RunService.RenderStepped:Wait()
-            root.Velocity = A
-            root.AssemblyLinearVelocity = B
-            root.AssemblyAngularVelocity = C
-        end
-    end)
-end
-
-local function stopAntiAim()
-    if AntiAimConnection then
-        AntiAimConnection:Disconnect()
-        AntiAimConnection = nil
-    end
-end
-
-local function setNoclip(state)
-    if not character then return end
-    for _, part in pairs(character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CanCollide = not state
-        end
-    end
-end
+getgenv().AntiAimAssiant = false
 
 RunService.Heartbeat:Connect(function()
-    if not humanoid or not rootPart then return end
-    if not getgenv().AutoAntiKill then return end
+    if getgenv().AntiAimAssiant then   
+        local HumanoidModule = Char.get_hum()
+        if HumanoidModule and not HumanoidModule:GetAttribute("HasBeenDowned") then 
+            local RootPartModule = Char.get_hrp()
+            if not RootPartModule then return end
 
-    if humanoid.Health > 0 and humanoid.Health < 17 and not isEvading then
-        isEvading = true
-        originalPos = rootPart.CFrame
-        stopAntiAim()
-        setNoclip(true)
-        task.spawn(function()
-            while isEvading and humanoid and humanoid.Health > 0 do
-                local randomOffset = Vector3.new(
-                    math.random(-500, 500), 
-                    math.random(-200, 500),
-                    math.random(-500, 500)
-                )
-                rootPart.CFrame = rootPart.CFrame * CFrame.new(randomOffset)
-                task.wait(0.05)
-            end
-        end)
-    elseif humanoid.Health >= 30 and isEvading then
-        isEvading = false
-        setNoclip(false)
-        if originalPos and rootPart then
-            rootPart.CFrame = originalPos
-        end
-        if getgenv().AntiAimAssiant then
-            startAntiAim()
+            local A = RootPartModule.Velocity
+            local B = RootPartModule.AssemblyLinearVelocity
+            local C = RootPartModule.AssemblyAngularVelocity
+
+            RootPartModule.Velocity = Vector3.new(
+                math.random(-100000,999999),
+                math.random(-100000,999999),
+                math.random(-100000,999999)
+            )
+
+            RootPartModule.AssemblyLinearVelocity = Vector3.new(
+                math.random(-100000,999999),
+                math.random(-100000,999999),
+                math.random(-100000,999999)
+            )
+
+            RootPartModule.AssemblyAngularVelocity = Vector3.new(
+                math.random(-100000,999999),
+                math.random(-100000,999999),
+                math.random(-100000,999999)
+            )
+
+            RunService.RenderStepped:Wait()
+
+            RootPartModule.Velocity = A
+            RootPartModule.AssemblyLinearVelocity = B
+            RootPartModule.AssemblyAngularVelocity = C
         end
     end
 end)
 
 MainTab:Toggle({
-    Title = "Anti Aim(กันล็อค)",
-    Flag = "antiaim",
+    Title = "Anti Aim Assiant",
+    Flag = "antiaim_assist",
     Value = false,
-    Callback = function(Value)
-        getgenv().AntiAimAssiant = Value
-        if Value then
-            startAntiAim()
-        else
-            stopAntiAim()
-        end
-    end
-})
-
-MainTab:Toggle({
-    Title = "Anti Kill(กันตาย)",
-    Flag = "autoantikill",
-    Value = false,
-    Callback = function(Value)
-        getgenv().AutoAntiKill = Value
+    Callback = function(v)
+        getgenv().AntiAimAssiant = v
     end
 })
 
