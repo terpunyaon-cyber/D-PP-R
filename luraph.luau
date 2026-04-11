@@ -116,6 +116,11 @@ local CombatTab = Window:Tab({
     Icon = "swords"
 })
 
+local ModTab = Window:Tab({
+    Title = "Gun mods",
+    Icon = "airplay"
+})
+
 local VisualTab = Window:Tab({
     Title = "Visual",
     Icon = "eye"
@@ -1542,3 +1547,726 @@ VisualTab:Toggle({
 })
 
                     
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local DroppedFolder = workspace:WaitForChild("DroppedItems")
+
+local ItemESPs = {}
+local ShowItemESP = true
+
+local BlueColor  = Color3.fromRGB(0,150,255)
+local GreenColor = Color3.fromRGB(0,255,0)
+
+local function getItemColor(item)
+    if item.Name:lower():find("money") then
+        return GreenColor
+    end
+    return BlueColor
+end
+
+local function createItemESP(item)
+    if ItemESPs[item] then return end
+
+    local color = getItemColor(item)
+    local highlights = {}
+    local label
+
+    local function addHighlight(part)
+        local hl = Instance.new("Highlight")
+        hl.Adornee = part
+        hl.FillColor = color
+        hl.OutlineColor = color
+        hl.FillTransparency = 0.8
+        hl.OutlineTransparency = 0
+        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        hl.Enabled = true
+        hl.Parent = part
+        table.insert(highlights, hl)
+    end
+
+    if item:IsA("BasePart") then
+        addHighlight(item)
+    elseif item:IsA("Model") then
+        for _, v in ipairs(item:GetDescendants()) do
+            if v:IsA("BasePart") then
+                addHighlight(v)
+            end
+        end
+    end
+
+    local basePart =
+        item:IsA("BasePart") and item
+        or item.PrimaryPart
+        or item:FindFirstChildWhichIsA("BasePart")
+
+    if basePart then
+        local bb = Instance.new("BillboardGui")
+        bb.Adornee = basePart
+        bb.Size = UDim2.new(0, 55, 0, 9)
+        bb.StudsOffset = Vector3.new(0, basePart.Size.Y/2 + 0.6, 0)
+        bb.AlwaysOnTop = true
+        bb.Parent = basePart
+
+        label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1,0,1,0)
+        label.BackgroundTransparency = 1
+        label.Text = "[" .. item.Name .. "]"
+        label.Font = Enum.Font.GothamBold
+        label.TextScaled = false
+        label.TextSize = 8
+        label.TextColor3 = color
+        label.TextStrokeTransparency = 0.5
+        label.Visible = true
+        label.Parent = bb
+    end
+
+    ItemESPs[item] = {
+        highlights = highlights,
+        label = label
+    }
+end
+
+local function removeItemESP(item)
+    local data = ItemESPs[item]
+    if not data then return end
+
+    for _, hl in ipairs(data.highlights) do
+        if hl then hl:Destroy() end
+    end
+
+    if data.label and data.label.Parent then
+        data.label.Parent:Destroy()
+    end
+
+    ItemESPs[item] = nil
+end
+
+for _, item in ipairs(DroppedFolder:GetChildren()) do
+    createItemESP(item)
+end
+
+DroppedFolder.ChildAdded:Connect(createItemESP)
+DroppedFolder.ChildRemoved:Connect(removeItemESP)
+
+local function BumpAuraLoop()
+    while _G.BumpAura do
+        task.wait(0.1)
+
+        local car = Vechine.get_car_player_is_in()
+        if not car or not car:FindFirstChild("DriverSeat") then
+            continue
+        end
+
+        for _, target in pairs(CharModule.get_all()) do
+            if target ~= Character and target then
+                local hrp = target:FindFirstChild("HumanoidRootPart")
+                if hrp and GetDistanceFromRootPart(hrp) < 100 then
+                    
+                    local Assembly = car.DriverSeat.AssemblyLinearVelocity + Vector3.new(65, 65, 65)
+
+                    Net.send("run_over", car, target, Assembly)
+                end
+            end 
+        end
+    end
+end
+
+CarTab:Toggle({
+    Title = "Bump Aura",
+    Flag = "BumpAura",
+    Value = false,
+    Callback = function(Value)
+        _G.BumpAura = Value
+
+        if Value then
+            task.spawn(BumpAuraLoop)
+        end
+    end
+})
+
+local EnabledSkip = false
+
+MiscTab:Toggle({
+    Title = "Skip Animation",
+    Flag = "skip_anim",
+    Value = false,
+    Callback = function(Value)
+        EnabledSkip = Value
+
+        if EnabledSkip then
+            task.spawn(function()
+                while EnabledSkip do
+                    pcall(function()
+                        if CrateController 
+                        and CrateController.class 
+                        and CrateController.class.objects then
+                            
+                            for _, crate in pairs(CrateController.class.objects) do
+                                if crate and crate.states and crate.states.open then
+                                    crate.states.open.set(true)
+                                end
+                            end
+
+                            if CrateController.skipping then
+                                CrateController.skipping.set(true)
+                            end
+                        end
+                    end)
+
+                    task.wait(0.05)
+                end
+            end)
+        end
+    end
+})
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local playerGui = gethui and gethui() or game:GetService("CoreGui")
+local camera = workspace.CurrentCamera
+
+local SPEED = 250
+local SPEED_MIN = 10
+local SPEED_MAX = 500
+local DEBOUNCE = 0.35
+local SMOOTH = 0
+
+local UI_WIDTH = 132
+local UI_HEIGHT = 44
+local SPEEDBOX_W = 56
+local SPEEDBOX_H = 14
+
+local freecam = false
+local dummy = nil
+local char, humanoid, hrp = nil, nil, nil
+local saved = {}
+local pendingStamp = 0
+local allowMovement = false
+local initialDummyCFrame = nil
+local initialCameraCFrame = nil
+local savedCameraFOV = nil
+local initialDistance = nil
+local savedPartAnchors = {}
+local savedPlatformStand = nil
+local yaw = 0
+local pitch = 0
+local ROT_SENS = 0.0025
+local lastInputPos = Vector2.new(0,0)
+local ignoreNextInput = false
+
+local function safeSet(fn, ...)
+    pcall(fn, ...)
+end
+
+local function createGui()
+    if playerGui:FindFirstChild("SpectatorCleanGUI") then
+        local g = playerGui.SpectatorCleanGUI
+        return {Gui = g, Frame = g.Container, Toggle = g.Container.Toggle, SpeedBox = g.Container.SpeedBox, Info = g.Container.Info}
+    end
+
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "SpectatorCleanGUI"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = playerGui
+
+    local frame = Instance.new("Frame")
+    frame.Name = "Container"
+    frame.Size = UDim2.new(0, UI_WIDTH, 0, UI_HEIGHT)
+    frame.Position = UDim2.new(0, 8, 0, 8)
+    frame.BackgroundColor3 = Color3.fromRGB(18,20,24)
+    frame.BorderSizePixel = 0
+    frame.Parent = screenGui
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0,6)
+
+    local toggle = Instance.new("TextButton", frame)
+    toggle.Name = "Toggle"
+    toggle.Size = UDim2.new(0.32, -8, 0, 22)
+    toggle.Position = UDim2.new(0.62, 0, 0, 6)
+    toggle.Text = "OFF"
+
+    local speedBox = Instance.new("TextBox", frame)
+    speedBox.Name = "SpeedBox"
+    speedBox.Size = UDim2.new(0, SPEEDBOX_W, 0, SPEEDBOX_H)
+    speedBox.Position = UDim2.new(0, 8, 1, -18)
+
+    local info = Instance.new("TextLabel", frame)
+    info.Name = "Info"
+    info.Size = UDim2.new(1, -10, 0, 10)
+    info.Position = UDim2.new(0, 5, 1, -10)
+
+    return {Gui = screenGui, Frame = frame, Toggle = toggle, SpeedBox = speedBox, Info = info}
+end
+
+local gui = createGui()
+local toggleBtn = gui.Toggle
+local speedBox = gui.SpeedBox
+local infoLabel = gui.Info
+
+local function makeDummy()
+    local p = Instance.new("Part")
+    p.Anchored = true
+    p.CanCollide = false
+    p.Transparency = 1
+    p.Parent = workspace
+    return p
+end
+
+local function startSpectator()
+    char = player.Character or player.CharacterAdded:Wait()
+    humanoid = char:FindFirstChildOfClass("Humanoid")
+    hrp = char:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not hrp then return end
+
+    dummy = makeDummy()
+    dummy.CFrame = camera.CFrame
+
+    camera.CameraType = Enum.CameraType.Scriptable
+    freecam = true
+    toggleBtn.Text = "ON"
+end
+
+local function stopSpectator()
+    freecam = false
+    camera.CameraType = Enum.CameraType.Custom
+    if dummy then dummy:Destroy() dummy = nil end
+    toggleBtn.Text = "OFF"
+end
+
+RunService.RenderStepped:Connect(function(dt)
+    if not freecam or not dummy then return end
+
+    local move = Vector3.new()
+
+    if UserInputService:IsKeyDown(Enum.KeyCode.W) then move += camera.CFrame.LookVector end
+    if UserInputService:IsKeyDown(Enum.KeyCode.S) then move -= camera.CFrame.LookVector end
+    if UserInputService:IsKeyDown(Enum.KeyCode.A) then move -= camera.CFrame.RightVector end
+    if UserInputService:IsKeyDown(Enum.KeyCode.D) then move += camera.CFrame.RightVector end
+
+    if move.Magnitude > 0 then
+        dummy.CFrame += move.Unit * SPEED * dt
+    end
+
+    camera.CFrame = dummy.CFrame
+end)
+
+toggleBtn.MouseButton1Click:Connect(function()
+    if freecam then stopSpectator() else startSpectator() end
+end)
+
+speedBox:GetPropertyChangedSignal("Text"):Connect(function()
+    local n = tonumber(speedBox.Text)
+    if n then
+        SPEED = math.clamp(n, SPEED_MIN, SPEED_MAX)
+    end
+end)
+
+speedBox.PlaceholderText = tostring(SPEED)
+
+local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Terrain = workspace:FindFirstChildOfClass("Terrain")
+
+local function Bootsfps()
+	for _, v in ipairs(Lighting:GetChildren()) do
+		if v:IsA("Sky")
+		or v:IsA("Atmosphere")
+		or v:IsA("BloomEffect")
+		or v:IsA("SunRaysEffect")
+		or v:IsA("ColorCorrectionEffect")
+		or v:IsA("DepthOfFieldEffect") then
+			v:Destroy()
+		end
+	end
+
+	Lighting.GlobalShadows = false
+	Lighting.Brightness = 0
+	Lighting.FogEnd = 9e9
+	Lighting.EnvironmentDiffuseScale = 0
+	Lighting.EnvironmentSpecularScale = 0
+
+	if Terrain then
+		Terrain.WaterWaveSize = 0
+		Terrain.WaterWaveSpeed = 0
+		Terrain.WaterReflectance = 0
+		Terrain.WaterTransparency = 1
+	end
+
+	for _, v in ipairs(workspace:GetDescendants()) do
+		if v:IsA("BasePart") then
+			v.Material = Enum.Material.Plastic
+			v.Reflectance = 0
+			v.CastShadow = false
+			v.Color = Color3.fromRGB(120,120,120)
+		elseif v:IsA("Decal") or v:IsA("Texture") then
+			v.Transparency = 1
+		elseif v:IsA("ParticleEmitter")
+		or v:IsA("Trail")
+		or v:IsA("Beam") then
+			v.Enabled = false
+		end
+	end
+end
+
+if MiscTab then
+	MiscTab:Button({
+		Title = "Bootsfps",
+		Icon = "zap",
+		Callback = function()
+			Bootsfps()
+		end
+	})
+else
+	Bootsfps()
+end
+
+local Lighting = game:GetService("Lighting")
+local Terrain = workspace:FindFirstChildOfClass("Terrain")
+
+local function RTX_ON()
+	for _, v in ipairs(Lighting:GetChildren()) do
+		if v:IsA("Atmosphere")
+		or v:IsA("BloomEffect")
+		or v:IsA("SunRaysEffect")
+		or v:IsA("ColorCorrectionEffect")
+		or v:IsA("DepthOfFieldEffect")
+		or v:IsA("Sky") then
+			v:Destroy()
+		end
+	end
+
+	local Sky = Instance.new("Sky")
+	Sky.SkyboxBk = "rbxassetid://159454299"
+	Sky.SkyboxDn = "rbxassetid://159454296"
+	Sky.SkyboxFt = "rbxassetid://159454293"
+	Sky.SkyboxLf = "rbxassetid://159454286"
+	Sky.SkyboxRt = "rbxassetid://159454300"
+	Sky.SkyboxUp = "rbxassetid://159454288"
+	Sky.SunAngularSize = 21
+	Sky.Parent = Lighting
+
+	Lighting.Technology = Enum.Technology.Future
+	Lighting.GlobalShadows = true
+	Lighting.ShadowSoftness = 1
+	Lighting.Brightness = 3
+	Lighting.ExposureCompensation = 0.25
+	Lighting.EnvironmentDiffuseScale = 1
+	Lighting.EnvironmentSpecularScale = 1
+	Lighting.ClockTime = 14
+
+	local Atmosphere = Instance.new("Atmosphere")
+	Atmosphere.Density = 0.35
+	Atmosphere.Offset = 0.25
+	Atmosphere.Color = Color3.fromRGB(190, 210, 255)
+	Atmosphere.Decay = Color3.fromRGB(120, 150, 200)
+	Atmosphere.Glare = 0.35
+	Atmosphere.Haze = 1.2
+	Atmosphere.Parent = Lighting
+
+	local Bloom = Instance.new("BloomEffect")
+	Bloom.Intensity = 1.2
+	Bloom.Size = 56
+	Bloom.Threshold = 0.85
+	Bloom.Parent = Lighting
+
+	local SunRays = Instance.new("SunRaysEffect")
+	SunRays.Intensity = 0.25
+	SunRays.Spread = 0.85
+	SunRays.Parent = Lighting
+
+	local CC = Instance.new("ColorCorrectionEffect")
+	CC.Brightness = 0.05
+	CC.Contrast = 0.25
+	CC.Saturation = 0.35
+	CC.TintColor = Color3.fromRGB(255, 245, 235)
+	CC.Parent = Lighting
+
+	local DOF = Instance.new("DepthOfFieldEffect")
+	DOF.FarIntensity = 0.25
+	DOF.NearIntensity = 0.05
+	DOF.FocusDistance = 60
+	DOF.InFocusRadius = 40
+	DOF.Parent = Lighting
+
+	if Terrain then
+		Terrain.WaterWaveSize = 1
+		Terrain.WaterWaveSpeed = 15
+		Terrain.WaterReflectance = 1
+		Terrain.WaterTransparency = 0.05
+	end
+
+	for _, v in ipairs(workspace:GetDescendants()) do
+		if v:IsA("BasePart") then
+			v.CastShadow = true
+			if v.Material == Enum.Material.Plastic then
+				v.Material = Enum.Material.SmoothPlastic
+			end
+		end
+	end
+end
+
+if MiscTab then
+	MiscTab:Button({
+		Title = "RTX ON",
+		Icon = "sparkles",
+		Callback = function()
+			RTX_ON()
+		end
+	})
+else
+	RTX_ON()
+end
+
+local function GetJobID()
+    return game.JobId or "Unknown"
+end
+
+if ServerTab then
+    local ServerCodeLabel = ServerTab:Code({
+        Title = "Current Server",
+        Code = " " .. GetJobID()
+    })
+
+    ServerTab:Divider()
+
+    ServerTab:Section({
+        Title = "Server Utilities:"
+    })
+
+    local ServerCode = ""
+
+    ServerTab:Input({
+        Title = "Enter Server Code",
+        Placeholder = "Paste server JobId here...",
+        Callback = function(Value)
+            ServerCode = Value or ""
+        end
+    })
+
+    ServerTab:Button({
+        Title = "Join Code",
+        Icon = "log-in",
+        Callback = function()
+            if ServerCode == "" then
+                warn("ใส่codeดิน้อง")
+                return
+            end
+            local TeleportService = game:GetService("TeleportService")
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, ServerCode, game.Players.LocalPlayer)
+        end
+    })
+
+    ServerTab:Button({
+        Title = "Rejoin",
+        Icon = "refresh-ccw",
+        Callback = function()
+            local TeleportService = game:GetService("TeleportService")
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, game.Players.LocalPlayer)
+        end
+    })
+
+    ServerTab:Button({
+        Title = "Hop Server (Low Player)",
+        Icon = "shuffle",
+        Callback = function()
+            local HttpService = game:GetService("HttpService")
+            local TeleportService = game:GetService("TeleportService")
+
+            local servers = {}
+            local success, req = pcall(function()
+                return game:HttpGet(string.format(
+                    "https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100",
+                    game.PlaceId
+                ))
+            end)
+
+            if success then
+                local data = HttpService:JSONDecode(req)
+                if data and data.data then
+                    for _, v in pairs(data.data) do
+                        if v.playing < v.maxPlayers then
+                            table.insert(servers, v.id)
+                        end
+                    end
+                end
+            end
+
+            if #servers > 0 then
+                TeleportService:TeleportToPlaceInstance(
+                    game.PlaceId,
+                    servers[math.random(1, #servers)],
+                    game.Players.LocalPlayer
+                )
+            else
+                warn("หาเซิฟไม่ได้")
+            end
+        end
+    })
+else
+    warn("ServerTab not found")
+end
+
+local HttpService = game:GetService("HttpService")
+
+local ConfigFile = "my_script_config.json"
+local Config = {}
+
+local function LoadConfig()
+    if isfile and isfile(ConfigFile) then
+        local data = readfile(ConfigFile)
+        Config = HttpService:JSONDecode(data)
+    end
+end
+
+local function SaveConfig()
+    if writefile then
+        writefile(ConfigFile, HttpService:JSONEncode(Config))
+    end
+end
+
+LoadConfig()
+
+MiscTab:Section({
+    Title = "Config"
+})
+
+MiscTab:Button({
+    Title = "Save Settings",
+    Icon = "save",
+    Callback = function()
+        Config.ESPEnabled = _G.ESPEnabled
+        Config.ItemESP = _G.ItemESP
+        Config.BumpAura = _G.BumpAura
+        Config.SkipAnim = _G.SkipAnim
+        Config.FreecamSpeed = SPEED
+
+        SaveConfig()
+    end
+})
+
+MiscTab:Button({
+    Title = "Load Settings",
+    Icon = "folder",
+    Callback = function()
+        LoadConfig()
+
+        if Config.ESPEnabled ~= nil then
+            _G.ESPEnabled = Config.ESPEnabled
+        end
+
+        if Config.ItemESP ~= nil then
+            _G.ItemESP = Config.ItemESP
+        end
+
+        if Config.BumpAura ~= nil then
+            _G.BumpAura = Config.BumpAura
+        end
+
+        if Config.SkipAnim ~= nil then
+            _G.SkipAnim = Config.SkipAnim
+        end
+
+        if Config.FreecamSpeed then
+            SPEED = Config.FreecamSpeed
+        end
+    end
+})
+
+getgenv().MultiShootAmount = 1
+
+CombatTab:Slider({
+    Title = "Multi Shoot Amount",
+    Step = 1,
+    Value = {
+        Min = 1,
+        Max = 7,
+        Default = 1
+    },
+    Callback = function(v)
+        getgenv().MultiShootAmount = v
+    end
+})
+
+OldSend = hookfunction(Network.send, function(...)
+    local args = {...}
+
+    if args[1] == "shoot_gun" then
+        for i = 1, (getgenv().MultiShootAmount or 1) do
+            OldSend(table.unpack(args))
+        end
+        return
+    end
+
+    return OldSend(...)
+end)
+
+Tg(false,Mod,"เปิดใช้ปรับแต่งปืน")
+
+Mod:Slider({
+	Title = "Fire Rate",
+	Step = 1,
+	Value = {
+		Min = 100,
+		Max = 5000,
+		Default = c().FireRateGun or 1000
+	},
+	Callback = function(v)
+		c().FireRateGun = v
+	end
+})
+
+Mod:Slider({
+	Title = "Recoil",
+	Step = 0.1,
+	Value = {
+		Min = 0,
+		Max = 10,
+		Default = c().RecoilGun or 0
+	},
+	Callback = function(v)
+		c().RecoilGun = v
+	end
+})
+
+Mod:Slider({
+	Title = "Accuracy",
+	Step = 0.01,
+	Value = {
+		Min = 0,
+		Max = 1,
+		Default = c().AccuracyGun or 1
+	},
+	Callback = function(v)
+		c().AccuracyGun = v
+	end
+})
+
+Mod:Slider({
+	Title = "Durability",
+	Step = 1,
+	Value = {
+		Min = 100,
+		Max = 5000,
+		Default = c().DurabilityGun or 1000
+	},
+	Callback = function(v)
+		c().DurabilityGun = v
+	end
+})
+
+RunService.RenderStepped:Connect(function()
+	if not c().GunModEnabled then return end
+
+	local tool = Character and Character:FindFirstChildWhichIsA("Tool")
+	if not tool then return end
+
+	pcall(function()
+		tool:SetAttribute("fire_rate", c().FireRateGun or 1000)
+		tool:SetAttribute("accuracy", c().AccuracyGun or 1)
+		tool:SetAttribute("Recoil", c().RecoilGun or 0)
+		tool:SetAttribute("Durability", c().DurabilityGun or 1000)
+	end)
+end)
