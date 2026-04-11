@@ -1,3 +1,5 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local WindUI = loadstring(game:HttpGet(
 "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
 ))()
@@ -23,7 +25,7 @@ local Window = WindUI:CreateWindow({
     User = {
         Enabled = false,
         Custom = {
-            Name = Anonymous,
+            Name = "Anonymous",
             Bio = "RickHUB USER",
             Image = avatar
         }
