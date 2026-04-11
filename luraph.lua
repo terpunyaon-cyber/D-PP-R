@@ -561,6 +561,8 @@ MainTab:Slider({
     end
 })
 
+
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Debris = game:GetService("Debris")
@@ -574,7 +576,9 @@ local TargetHistory = {}
 local FOV = 200
 local HIGH_VEL_THRESHOLD = 250
 local TargetPartName = "Head"
+
 local SilentAimEnabled = false
+local DebugEnabled = false
 
 
 
@@ -596,10 +600,18 @@ CombatTab:Toggle({
     end
 })
 
+CombatTab:Toggle({
+    Title = "Debug Gun (โทรศัพท์ไม่ดีไม่แนะนำ)​",
+    Default = false,
+    Callback = function(v)
+        DebugEnabled = v
+    end
+})
+
 CombatTab:Slider({
     Title = "FOV Size",
     Step = 1,
-    Value = {Min = 50, Max = 500, Default = FOV},
+    Value = {Min = 50, Max = 800, Default = FOV},
     Callback = function(v)
         FOV = v
         fovCircle.Radius = v
@@ -648,6 +660,32 @@ local tracer = Drawing.new("Line")
 tracer.Thickness = 2
 tracer.Color = Color3.fromRGB(255,0,0)
 tracer.Visible = false
+
+
+
+local DebugToggleColor = false
+
+local function DebugGun(fromPos, toPos)
+    DebugToggleColor = not DebugToggleColor
+
+    local distance = (toPos - fromPos).Magnitude
+
+    local part = Instance.new("Part")
+    part.Size = Vector3.new(0.6, 0.6, distance)
+    part.CFrame = CFrame.new(fromPos, toPos) * CFrame.new(0, 0, -distance/2)
+    part.Anchored = true
+    part.CanCollide = false
+    part.Material = Enum.Material.Neon
+
+    if DebugToggleColor then
+        part.Color = Color3.fromRGB(0,0,0)
+    else
+        part.Color = Color3.fromRGB(255,255,255)
+    end
+
+    part.Parent = workspace
+    Debris:AddItem(part, 3)
+end
 
 
 
@@ -816,6 +854,11 @@ OldSend = hookfunction(Network.send, function(...)
 
                 args[3] = CFrame.new(myPos, predictedPos)
 
+                
+                if DebugEnabled then
+                    DebugGun(myPos, predictedPos)
+                end
+
                 for _, v in pairs(args[4] or {}) do
                     for _, x in pairs(v) do
                         x.Position = predictedPos
@@ -828,6 +871,10 @@ OldSend = hookfunction(Network.send, function(...)
 
     return OldSend(table.unpack(args))
 end)
+
+
+
+
 
 
 
