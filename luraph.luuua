@@ -240,60 +240,7 @@ MainTab:Slider({
     end
 })
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 
-local Client = Players.LocalPlayer
-local Char = require(game.ReplicatedStorage.Modules.Core.Char)
-
-getgenv().AntiAimAssiant = false
-
-RunService.Heartbeat:Connect(function()
-    if getgenv().AntiAimAssiant then   
-        local HumanoidModule = Char.get_hum()
-        if HumanoidModule and not HumanoidModule:GetAttribute("HasBeenDowned") then 
-            local RootPartModule = Char.get_hrp()
-            if not RootPartModule then return end
-
-            local A = RootPartModule.Velocity
-            local B = RootPartModule.AssemblyLinearVelocity
-            local C = RootPartModule.AssemblyAngularVelocity
-
-            RootPartModule.Velocity = Vector3.new(
-                math.random(-100000,999999),
-                math.random(-100000,999999),
-                math.random(-100000,999999)
-            )
-
-            RootPartModule.AssemblyLinearVelocity = Vector3.new(
-                math.random(-100000,999999),
-                math.random(-100000,999999),
-                math.random(-100000,999999)
-            )
-
-            RootPartModule.AssemblyAngularVelocity = Vector3.new(
-                math.random(-100000,999999),
-                math.random(-100000,999999),
-                math.random(-100000,999999)
-            )
-
-            RunService.RenderStepped:Wait()
-
-            RootPartModule.Velocity = A
-            RootPartModule.AssemblyLinearVelocity = B
-            RootPartModule.AssemblyAngularVelocity = C
-        end
-    end
-end)
-
-MainTab:Toggle({
-    Title = "Anti Aim Assiant",
-    Flag = "antiaim_assist",
-    Value = false,
-    Callback = function(v)
-        getgenv().AntiAimAssiant = v
-    end
-})
 
 
 -- อันติแรคดอล
