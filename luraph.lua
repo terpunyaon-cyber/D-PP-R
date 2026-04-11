@@ -182,7 +182,7 @@ end
 
 
 MainTab:Toggle({
-    Title = "High Jump",
+    Title = "High jump(กระโดดสูง)",
     Default = false,
     Callback = function(state)
         highJumpActive = state
@@ -196,7 +196,7 @@ MainTab:Toggle({
 
 -- ปรับดโดสุง
 MainTab:Slider({
-    Title = "High Jump Power",
+    Title = "High Jump Power(ปรับความสูง)",
     Value = {Min = 20, Max = maxJumpPower, Default = highJumpPower},
     Step = 1,
     Callback = function(value)
@@ -209,7 +209,7 @@ MainTab:Slider({
 
 -- ปุ่มวิ่งไว
 MainTab:Toggle({
-    Title = "Walk Speed",
+    Title = "Walk Speed(วิ่งไว)",
     Default = false,
     Callback = function(state)
         speedActive = state
@@ -218,7 +218,7 @@ MainTab:Toggle({
 
 -- ปรับวิ่งวไ
 MainTab:Slider({
-    Title = "Speed Multiplier",
+    Title = "Speed Multiplier(ปรับความเร็ว)",
     Value = {Min = 1, Max = 5, Default = walkSpeedMultiplier},
     Step = 1,
     Callback = function(value)
@@ -327,7 +327,7 @@ RunService.Heartbeat:Connect(function()
 end)
 
 MainTab:Toggle({
-    Title = "Anti Aim",
+    Title = "Anti Aim(กันล็อค)",
     Flag = "antiaim",
     Value = false,
     Callback = function(Value)
@@ -341,7 +341,7 @@ MainTab:Toggle({
 })
 
 MainTab:Toggle({
-    Title = "Anti Kill",
+    Title = "Anti Kill(กันตาย)",
     Flag = "autoantikill",
     Value = false,
     Callback = function(Value)
@@ -371,10 +371,8 @@ end
 
 
 MainTab:Toggle({
-    Title = "Anti Ragdoll",
-    Desc = "No ragdoll",
+    Title = "Anti Ragdoll(กันล้ม)",
     Flag = "AntiRagdoll",
-    Type = "Checkbox",
     Value = false,
     Callback = function(Value)
         _G.AntiRagdoll = Value
@@ -436,7 +434,7 @@ end)
 
 
 MainTab:Toggle({
-    Title = "Pickup Item",
+    Title = "Pickup Item(ดูดของ)",
     Default = false,
     Callback = function(state)
         pickupEnabled = state
@@ -444,7 +442,7 @@ MainTab:Toggle({
 })
 
 MainTab:Toggle({
-    Title = "infinity stamina",
+    Title = "infinity stamina(วิ่งไม่จำกัด)",
     Default = false,
     Callback = function(state)
         if state then
@@ -532,7 +530,7 @@ end
 
 
 MainTab:Toggle({
-    Title = "Snap",
+    Title = "Snap(มุดดิน)",
     Value = false,
     Flag = "UndergroundToggle",
     Callback = function(value)
@@ -542,7 +540,7 @@ MainTab:Toggle({
 
 
 MainTab:Keybind({
-    Title = "Snap Keybind",
+    Title = "Snap Keybind(ปุ่มลัดของคอม)",
     Flag = "snap_keybind",
     Value = "G",
     Callback = function()
@@ -552,7 +550,7 @@ MainTab:Keybind({
 
 
 MainTab:Slider({
-    Title = "Snap High",
+    Title = "Snap High(ความลึก)",
     Flag = "snap_height",
     Step = 1,
     Value = { Min = 1, Max = 70, Default = YoffsetValue },
@@ -593,7 +591,7 @@ local function GetPlayerNames()
 end
 
 CombatTab:Toggle({
-    Title = "Silent Aim",
+    Title = "Silent Aim(ล็อคเป้า)",
     Default = false,
     Callback = function(v)
         SilentAimEnabled = v
@@ -609,7 +607,7 @@ CombatTab:Toggle({
 })
 
 CombatTab:Slider({
-    Title = "FOV Size",
+    Title = "FOV Size(ปรับขนาดวงFov)",
     Step = 1,
     Value = {Min = 50, Max = 800, Default = FOV},
     Callback = function(v)
@@ -619,7 +617,7 @@ CombatTab:Slider({
 })
 
 CombatTab:Dropdown({
-    Title = "Target Part",
+    Title = "Target Part(ปรับยิงหัวกับตัว)",
     Values = {"Head","HumanoidRootPart"},
     Multi = false,
     Default = "Head",
@@ -629,7 +627,7 @@ CombatTab:Dropdown({
 })
 
 CombatTab:Dropdown({
-    Title = "Save Friend",
+    Title = "Save Friend(ไม่ยิงเพื่อน)",
     Values = GetPlayerNames(),
     Multi = true,
     Default = {},
@@ -947,7 +945,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 VisualTab:Toggle({
-Title = "ESP Name",
+Title = "ESP Name(มองชื่อ)",
 Default = false,
 Callback = function(v)
 NameESPEnabled = v
@@ -1035,7 +1033,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 VisualTab:Toggle({
-Title = "ESP Box",
+Title = "ESP Box(กล่อง)",
 Default = false,
 Callback = function(v)
 ESPEnabled = v
@@ -1132,7 +1130,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 VisualTab:Toggle({
-Title = "ESP Health Bar",
+Title = "ESP Health(มองเลือด)",
 Default = false,
 Callback = function(v)
 HealthESPEnabled = v
@@ -1207,7 +1205,7 @@ game:GetService("RunService").RenderStepped:Connect(function()
 end)
 
 VisualTab:Toggle({
-Title = "ESP Highlight",
+Title = "ESP Highlight(มองทะลุ)",
 Default = false,
 Callback = function(v)
 HighlightESPEnabled = v
@@ -1296,7 +1294,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 VisualTab:Toggle({
-Title = "ESP Distance",
+Title = "ESP Distance(มองระยะ)",
 Default = false,
 Callback = function(v)
 DistanceESPEnabled = v
@@ -1382,7 +1380,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 VisualTab:Toggle({
-Title = "ESP Tracer",
+Title = "ESP Tracer(มองเส้น)",
 Default = false,
 Callback = function(v)
 TracerEnabled = v
@@ -1394,7 +1392,7 @@ end
 
 
 VisualTab:Toggle({
-	Title = 'Inventory Viewer',
+	Title = 'Inventory Viewer(มองของ)',
 	Default = true,
 	Callback = function(Value)
 		_G.InventoryViewerEnabled = Value
