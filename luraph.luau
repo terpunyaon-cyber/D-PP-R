@@ -1,4 +1,13 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Plr, RS, Rep, UIS, CG, Deb, Light, TP, Http =
+    game:GetService("Players"),
+    game:GetService("RunService"),
+    game:GetService("ReplicatedStorage"),
+    game:GetService("UserInputService"),
+    game:GetService("CoreGui"),
+    game:GetService("Debris"),
+    game:GetService("Lighting"),
+    game:GetService("TeleportService"),
+    game:GetService("HttpService")
 
 local WindUI = loadstring(game:HttpGet(
 "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
