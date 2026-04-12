@@ -157,91 +157,88 @@ MainTab:Section(
 
 
 
-local Client = Players.LocalPlayer
-local Character = Client.Character or Client.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
-local RootPart = Character:WaitForChild("HumanoidRootPart")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
-Client.CharacterAdded:Connect(function(newCharacter)
-	Character = newCharacter
-	Humanoid = Character:WaitForChild("Humanoid")
-	RootPart = Character:WaitForChild("HumanoidRootPart")
-end)
+local player = Players.LocalPlayer
 
 local defaultJumpPower = 3.89
 local maxJumpPower = 100
-local highJumpPower = 10
+local highJumpPower = 60
 local walkSpeedMultiplier = 3
 
 local highJumpActive = false
 local speedActive = false
 
-getgenv().JumpPowerCustom = false
-getgenv().JumpPowerValue = highJumpPower
-
-getgenv().WalkSpeedCustom = false
-getgenv().WalkSpeedValue = walkSpeedMultiplier
-
-local function init()
-	MainTab:Toggle({
-		Title = "High Jump",
-		Default = false,
-		Callback = function(state)
-			highJumpActive = state
-			getgenv().JumpPowerCustom = state
-			if not state then
-				Humanoid.JumpHeight = defaultJumpPower
-			end
-		end
-	})
-
-	MainTab:Slider({
-		Title = "High Jump Power",
-		Value = {Min = 1, Max = maxJumpPower, Default = highJumpPower},
-		Step = 1,
-		Callback = function(value)
-			highJumpPower = tonumber(value)
-			getgenv().JumpPowerValue = highJumpPower
-		end
-	})
-
-	MainTab:Toggle({
-		Title = "Walk Speed",
-		Default = false,
-		Callback = function(state)
-			speedActive = state
-			getgenv().WalkSpeedCustom = state
-		end
-	})
-
-	MainTab:Slider({
-		Title = "Speed Multiplier",
-		Value = {Min = 1, Max = 10, Default = walkSpeedMultiplier},
-		Step = 1,
-		Callback = function(value)
-			walkSpeedMultiplier = tonumber(value)
-			getgenv().WalkSpeedValue = walkSpeedMultiplier
-		end
-	})
-
-	RunService.RenderStepped:Connect(function()
-		if Character and Humanoid then
-			Humanoid.JumpHeight = (getgenv().JumpPowerCustom and getgenv().JumpPowerValue) or defaultJumpPower
-
-			local dir = Humanoid.MoveDirection
-			if dir.Magnitude > 0 then
-				if getgenv().WalkSpeedCustom then
-					if Humanoid.WalkSpeed ~= 30 then
-						Humanoid.WalkSpeed = 30
-					end
-					RootPart.CFrame = RootPart.CFrame + (dir.Unit * (getgenv().WalkSpeedValue / 145.5))
-				end
-			end
-		end
-	end)
+local function getChar()
+    local char = player.Character or player.CharacterAdded:Wait()
+    return char, char:WaitForChild("Humanoid"), char:WaitForChild("HumanoidRootPart")
 end
 
-init()
+local function setJumpPower(power)
+    local _, hum = getChar()
+    hum.JumpHeight = power
+end
+
+MainTab:Toggle({
+    Title = "High Jump",
+    Default = false,
+    Callback = function(state)
+        highJumpActive = state
+        if state then
+            setJumpPower(highJumpPower)
+        else
+            setJumpPower(defaultJumpPower)
+        end
+    end
+})
+
+MainTab:Slider({
+    Title = "High Jump Power",
+    Value = {Min = 20, Max = maxJumpPower, Default = highJumpPower},
+    Step = 1,
+    Callback = function(value)
+        highJumpPower = tonumber(value)
+        if highJumpActive then
+            setJumpPower(highJumpPower)
+        end
+    end
+})
+
+MainTab:Toggle({
+    Title = "Walk Speed",
+    Default = false,
+    Callback = function(state)
+        speedActive = state
+    end
+})
+
+MainTab:Slider({
+    Title = "Speed Multiplier",
+    Value = {Min = 1, Max = 5, Default = walkSpeedMultiplier},
+    Step = 1,
+    Callback = function(value)
+        walkSpeedMultiplier = tonumber(value)
+    end
+})
+
+RunService.RenderStepped:Connect(function()
+    local _, hum, root = getChar()
+
+    if highJumpActive then
+        hum.JumpHeight = highJumpPower
+    end
+
+    if speedActive then
+        local dir = hum.MoveDirection
+        if dir.Magnitude > 0 then
+            if hum.WalkSpeed ~= 30 then
+                hum.WalkSpeed = 30
+            end
+            root.CFrame = root.CFrame + (dir.Unit * (walkSpeedMultiplier / 10))
+        end
+    end
+end)
 
 
 
