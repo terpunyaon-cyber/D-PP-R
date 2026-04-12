@@ -22,12 +22,11 @@ local avatar = "https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds="
 ..player.UserId.."&size=420x420&format=Png"
 
 local Window = WindUI:CreateWindow({
-    Title = "Dipper HUB | Premium [ BLOCK SPIN] ",
-    Icon = "rbxassetid://124339558110081",
-    Author = "D!PPER-TEAM",
+    Title = "Salmon X | Premium [ BLOCK SPIN] ",
+    Author = "Salmon-TEAM",
     Folder = "N HUB",
     Size = UDim2.fromOffset(700, 540),
-    Theme = "Light",
+    Background = "rbxassetid://97299710510779",
     Transparent = true,
     Resizable = true,
 
@@ -62,7 +61,7 @@ ScreenGui.Parent = CoreGui
 ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
 ToggleBtn.Position = UDim2.new(0, 20, 0.5, -25)
 ToggleBtn.BackgroundTransparency = 1
-ToggleBtn.Image = "rbxassetid://124339558110081"
+ToggleBtn.Image = "rbxassetid://106414651270859"
 ToggleBtn.Active = true
 ToggleBtn.Draggable = true
 ToggleBtn.Parent = ScreenGui
