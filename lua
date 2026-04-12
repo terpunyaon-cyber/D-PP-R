@@ -155,85 +155,93 @@ MainTab:Section(
     }
 )
 
-local defaultJumpPower = 20
+
+
+local Client = Players.LocalPlayer
+local Character = Client.Character or Client.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local RootPart = Character:WaitForChild("HumanoidRootPart")
+
+Client.CharacterAdded:Connect(function(newCharacter)
+	Character = newCharacter
+	Humanoid = Character:WaitForChild("Humanoid")
+	RootPart = Character:WaitForChild("HumanoidRootPart")
+end)
+
+local defaultJumpPower = 3.89
 local maxJumpPower = 100
-local highJumpPower = 60
-local walkSpeedMultiplier = 2
+local highJumpPower = 10
+local walkSpeedMultiplier = 3
+
 local highJumpActive = false
 local speedActive = false
 
-local function setJumpPower(power)
-    local char = player.Character or player.CharacterAdded:Wait()
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if hum then
-        hum.UseJumpPower = true
-        hum.JumpPower = math.clamp(power, 0, maxJumpPower)
-    end
+getgenv().JumpPowerCustom = false
+getgenv().JumpPowerValue = highJumpPower
+
+getgenv().WalkSpeedCustom = false
+getgenv().WalkSpeedValue = walkSpeedMultiplier
+
+local function init()
+	MainTab:Toggle({
+		Title = "High Jump",
+		Default = false,
+		Callback = function(state)
+			highJumpActive = state
+			getgenv().JumpPowerCustom = state
+			if not state then
+				Humanoid.JumpHeight = defaultJumpPower
+			end
+		end
+	})
+
+	MainTab:Slider({
+		Title = "High Jump Power",
+		Value = {Min = 1, Max = maxJumpPower, Default = highJumpPower},
+		Step = 1,
+		Callback = function(value)
+			highJumpPower = tonumber(value)
+			getgenv().JumpPowerValue = highJumpPower
+		end
+	})
+
+	MainTab:Toggle({
+		Title = "Walk Speed",
+		Default = false,
+		Callback = function(state)
+			speedActive = state
+			getgenv().WalkSpeedCustom = state
+		end
+	})
+
+	MainTab:Slider({
+		Title = "Speed Multiplier",
+		Value = {Min = 1, Max = 10, Default = walkSpeedMultiplier},
+		Step = 1,
+		Callback = function(value)
+			walkSpeedMultiplier = tonumber(value)
+			getgenv().WalkSpeedValue = walkSpeedMultiplier
+		end
+	})
+
+	RunService.RenderStepped:Connect(function()
+		if Character and Humanoid then
+			Humanoid.JumpHeight = (getgenv().JumpPowerCustom and getgenv().JumpPowerValue) or defaultJumpPower
+
+			local dir = Humanoid.MoveDirection
+			if dir.Magnitude > 0 then
+				if getgenv().WalkSpeedCustom then
+					if Humanoid.WalkSpeed ~= 30 then
+						Humanoid.WalkSpeed = 30
+					end
+					RootPart.CFrame = RootPart.CFrame + (dir.Unit * (getgenv().WalkSpeedValue / 145.5))
+				end
+			end
+		end
+	end)
 end
 
-local function setupCharacter(char)
-    local hum = char:WaitForChild("Humanoid")
-    hum.AutoJumpEnabled = false  
-
-    if highJumpActive then
-        hum.UseJumpPower = true
-        hum.JumpPower = highJumpPower
-    else
-        hum.JumpPower = defaultJumpPower
-    end
-end
-
-player.CharacterAdded:Connect(setupCharacter)
-
-if player.Character then
-    setupCharacter(player.Character)
-end
-
-
-MainTab:Toggle({
-    Title = "High Jump",
-    Default = false,
-    Callback = function(state)
-        highJumpActive = state
-        if state then
-            setJumpPower(highJumpPower)
-        else
-            setJumpPower(defaultJumpPower)
-        end
-    end
-})
-
--- ปรับดโดสุง
-MainTab:Slider({
-    Title = "High Jump Power",
-    Value = {Min = 20, Max = maxJumpPower, Default = highJumpPower},
-    Step = 1,
-    Callback = function(value)
-        highJumpPower = tonumber(value)
-        if highJumpActive then
-            setJumpPower(highJumpPower)
-        end
-    end
-})
-
--- ปุ่มวิ่งไว
-MainTab:Toggle({
-    Title = "Walk Speed",
-    Default = false,
-    Callback = function(state)
-        speedActive = state
-    end
-})
-
--- ปรับวิ่งวไ
-MainTab:Slider({
-    Title = "Speed Multiplier",
-    Value = {Min = 1, Max = 5, Default = walkSpeedMultiplier},
-    Step = 1,
-    Callback = function(value)
-        walkSpeedMultiplier = tonumber(value)
-    end
-})
+init()
 
 
 
@@ -247,9 +255,6 @@ MainTab:Section(
 )
 
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Debris = game:GetService("Debris")
 
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
