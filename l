@@ -170,7 +170,232 @@ MainTab:Section(
 )
 
 
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Debris = game:GetService("Debris")
 
+local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+
+local Network = require(game.ReplicatedStorage.Modules.Core.Net)
+
+local SilentAimEnabled = false
+local ShowFOV = true
+local FOV = 200
+local HIGH_VEL_THRESHOLD = 250
+local TargetPartName = "Head"
+
+local TargetHistory = {}
+
+local fovCircle = Drawing.new("Circle")
+fovCircle.Radius = FOV
+fovCircle.Thickness = 1
+fovCircle.Filled = false
+fovCircle.Color = Color3.fromRGB(255,255,255)
+fovCircle.Visible = ShowFOV
+
+local tracer = Drawing.new("Line")
+tracer.Thickness = 2
+tracer.Color = Color3.fromRGB(255,0,0)
+tracer.Visible = false
+
+local function GetPlayerNames()
+    local t = {}
+    for _,v in pairs(Players:GetPlayers()) do
+        if v ~= LocalPlayer then
+            table.insert(t, v.Name)
+        end
+    end
+    return t
+end
+
+CombatTab:Toggle({
+    Title = "Silent Aim(ล็อคเป้า)",
+    Default = false,
+    Callback = function(v)
+        SilentAimEnabled = v
+    end
+})
+
+CombatTab:Toggle({
+    Title = "Show FOV",
+    Default = true,
+    Callback = function(v)
+        ShowFOV = v
+        fovCircle.Visible = v
+    end
+})
+
+CombatTab:Slider({
+    Title = "FOV Size(ปรับขนาดวงFov)",
+    Step = 1,
+    Value = {Min = 50, Max = 800, Default = FOV},
+    Callback = function(v)
+        FOV = v
+        fovCircle.Radius = v
+    end
+})
+
+CombatTab:Dropdown({
+    Title = "Save Friend(ไม่ยิงเพื่อน)",
+    Values = GetPlayerNames(),
+    Multi = true,
+    Default = {},
+    Callback = function(selected)
+        for _, plr in pairs(Players:GetPlayers()) do
+            plr:SetAttribute("SilentAimIgnore", false)
+        end
+        for _, name in pairs(selected) do
+            local plr = Players:FindFirstChild(name)
+            if plr then
+                plr:SetAttribute("SilentAimIgnore", true)
+            end
+        end
+    end
+})
+
+CombatTab:Dropdown({
+    Title = "Target Part(ปรับยิงหัวกับตัว)",
+    Values = {"Head","HumanoidRootPart"},
+    Multi = false,
+    Default = "Head",
+    Callback = function(v)
+        TargetPartName = v
+    end
+})
+
+local function WorldToViewPoint(pos)
+    local vp, onScreen = Camera:WorldToViewportPoint(pos)
+    return vp, onScreen
+end
+
+local function IsAlive(model)
+    local hum = model:FindFirstChildOfClass("Humanoid")
+    local root = model:FindFirstChild("HumanoidRootPart")
+    return hum and root and hum.Health > 0
+end
+
+local function IsBehindWall(startPos, endPos, ignore)
+    local ray = Ray.new(startPos, endPos - startPos)
+    local hit = workspace:FindPartOnRayWithIgnoreList(ray, ignore or {})
+    return hit ~= nil
+end
+
+local function GetClosestTarget()
+    local closest, dist = nil, math.huge
+
+    for _, v in pairs(Players:GetPlayers()) do
+        if v ~= LocalPlayer and v.Character and IsAlive(v.Character) and not v:GetAttribute("SilentAimIgnore") then
+            local part = v.Character:FindFirstChild(TargetPartName)
+            if part then
+                local pos, onScreen = WorldToViewPoint(part.Position)
+                if onScreen then
+                    local d = (Vector2.new(pos.X,pos.Y) - Vector2.new(Camera.ViewportSize.X/2,Camera.ViewportSize.Y/2)).Magnitude
+                    if d < FOV and d < dist then
+                        closest = v.Character
+                        dist = d
+                    end
+                end
+            end
+        end
+    end
+
+    return closest
+end
+
+RunService.RenderStepped:Connect(function()
+    fovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+
+    if not SilentAimEnabled then
+        tracer.Visible = false
+        return
+    end
+
+    local target = GetClosestTarget()
+
+    if target then
+        local part = target:FindFirstChild(TargetPartName)
+        if part then
+            local pos, onScreen = WorldToViewPoint(part.Position)
+            if onScreen then
+                tracer.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+                tracer.To = Vector2.new(pos.X, pos.Y)
+                tracer.Visible = true
+            else
+                tracer.Visible = false
+            end
+        end
+    else
+        tracer.Visible = false
+    end
+end)
+
+local function GetVelocity(target, pos)
+    local t = tick()
+    TargetHistory[target] = TargetHistory[target] or {}
+    local hist = TargetHistory[target]
+
+    if #hist >= 3 then table.remove(hist,1) end
+    table.insert(hist,{pos=pos,time=t})
+
+    if #hist < 2 then return Vector3.zero end
+
+    local p1 = hist[#hist-1]
+    local p2 = hist[#hist]
+
+    local dt = math.max(p2.time - p1.time,1e-6)
+    return (p2.pos - p1.pos)/dt
+end
+
+local OldSend
+OldSend = hookfunction(Network.send,function(...)
+    local args = {...}
+
+    if args[1] == "shoot_gun" and SilentAimEnabled then
+        local target = GetClosestTarget()
+
+        if target then
+            local part = target:FindFirstChild(TargetPartName)
+            if part then
+                local char = LocalPlayer.Character
+                if not char then return OldSend(...) end
+
+                local root = char:FindFirstChild("HumanoidRootPart")
+                if not root then return OldSend(...) end
+
+                local myPos = root.Position
+                local targetPos = part.Position
+
+                local vel = GetVelocity(target,targetPos)
+
+                local predictedPos
+                if vel.Magnitude >= HIGH_VEL_THRESHOLD then
+                    predictedPos = targetPos
+                else
+                    predictedPos = targetPos + vel * 0.1
+                end
+
+                local ignore = {LocalPlayer.Character, target}
+                local behind = IsBehindWall(myPos, predictedPos, ignore)
+
+                if behind then
+                    args[3] = CFrame.new(math.huge, math.huge, math.huge)
+                else
+                    args[3] = CFrame.new(myPos, predictedPos)
+                end
+
+                for _,v in pairs(args[4] or {}) do
+                    for _,x in pairs(v) do
+                        x.Position = predictedPos
+                        x.Instance = part
+                    end
+                end
+            end
+        end
+    end
+
+    return OldSend(table.unpack(args))
+end)
 
 
 
@@ -1722,98 +1947,3 @@ MiscTab:Button({
     end
 })
 
-getgenv().MultiShootAmount = 1
-
-CombatTab:Slider({
-    Title = "Multi Shoot Amount",
-    Step = 1,
-    Value = {
-        Min = 1,
-        Max = 7,
-        Default = 1
-    },
-    Callback = function(v)
-        getgenv().MultiShootAmount = v
-    end
-})
-
-OldSend = hookfunction(Network.send, function(...)
-    local args = {...}
-
-    if args[1] == "shoot_gun" then
-        for i = 1, (getgenv().MultiShootAmount or 1) do
-            OldSend(table.unpack(args))
-        end
-        return
-    end
-
-    return OldSend(...)
-end)
-
-Tg(false,ModTab,"เปิดใช้ปรับแต่งปืน")
-
-ModTab:Slider({
-	Title = "Fire Rate",
-	Step = 1,
-	Value = {
-		Min = 100,
-		Max = 5000,
-		Default = c().FireRateGun or 1000
-	},
-	Callback = function(v)
-		c().FireRateGun = v
-	end
-})
-
-ModTab:Slider({
-	Title = "Recoil",
-	Step = 0.1,
-	Value = {
-		Min = 0,
-		Max = 10,
-		Default = c().RecoilGun or 0
-	},
-	Callback = function(v)
-		c().RecoilGun = v
-	end
-})
-
-ModTab:Slider({
-	Title = "Accuracy",
-	Step = 0.01,
-	Value = {
-		Min = 0,
-		Max = 1,
-		Default = c().AccuracyGun or 1
-	},
-	Callback = function(v)
-		c().AccuracyGun = v
-	end
-})
-
-ModTab:Slider({
-	Title = "Durability",
-	Step = 1,
-	Value = {
-		Min = 100,
-		Max = 5000,
-		Default = c().DurabilityGun or 1000
-	},
-	Callback = function(v)
-		c().DurabilityGun = v
-	end
-})
-
-RunService.RenderStepped:Connect(function()
-	if not c().GunModEnabled then return end
-
-	local tool = Character and Character:FindFirstChildWhichIsA("Tool")
-	if not tool then return end
-
-	pcall(function()
-		tool:SetAttribute("fire_rate", c().FireRateGun or 1000)
-		tool:SetAttribute("accuracy", c().AccuracyGun or 1)
-		tool:SetAttribute("Recoil", c().RecoilGun or 0)
-		tool:SetAttribute("Durability", c().DurabilityGun or 1000)
-	end)
-end)
