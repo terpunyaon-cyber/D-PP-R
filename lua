@@ -26,7 +26,7 @@ local Window = WindUI:CreateWindow({
     Author = "Salmon-TEAM",
     Folder = "N HUB",
     Size = UDim2.fromOffset(700, 540),
-    Background = "rbxassetid://77576960914760",
+    Background = "rbxassetid://104444646214946",
     Transparent = true,
     Resizable = true,
 
@@ -61,7 +61,7 @@ ScreenGui.Parent = CoreGui
 ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
 ToggleBtn.Position = UDim2.new(0, 20, 0.5, -25)
 ToggleBtn.BackgroundTransparency = 1
-ToggleBtn.Image = "rbxassetid://106414651270859"
+ToggleBtn.Image = "rbxassetid://94242028033094"
 ToggleBtn.Active = true
 ToggleBtn.Draggable = true
 ToggleBtn.Parent = ScreenGui
