@@ -26,7 +26,7 @@ local Window = WindUI:CreateWindow({
     Author = "Salmon-TEAM",
     Folder = "N HUB",
     Size = UDim2.fromOffset(700, 540),
-    Background = "rbxassetid://97299710510779",
+    Background = "rbxassetid://77576960914760",
     Transparent = true,
     Resizable = true,
 
