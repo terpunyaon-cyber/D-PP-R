@@ -240,7 +240,42 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local LocalPlayer = Players.LocalPlayer
+
+local RS = ReplicatedStorage
+local Net = require(RS:WaitForChild("Modules"):WaitForChild("Core"):WaitForChild("Net"))
+local RagdollModule = require(RS:WaitForChild("Modules"):WaitForChild("Game"):WaitForChild("Ragdoll"))
+
+local function AntiRagdollLoop()
+    while _G.AntiRagdoll do
+        task.wait(0.1)
+        pcall(function()
+            local isRagdolled = RagdollModule.is_ragdolling.get()
+            if isRagdolled then
+                RagdollModule.is_ragdolling.set(false)
+                pcall(function() Net.send("end_ragdoll_early") end)
+                pcall(function() Net.send("clear_ragdoll") end)
+                pcall(function() Net.get("end_ragdoll_early") end)
+                pcall(function() Net.get("clear_ragdoll") end)
+            end
+        end)
+    end
+end
+
+MainTab:Toggle({
+    Title = "Anti Ragdoll",
+    Flag = "AntiRagdoll",
+    Value = false,
+    Callback = function(Value)
+        _G.AntiRagdoll = Value
+        if Value then
+            task.spawn(AntiRagdollLoop)
+        end
+    end
+})
 
 
 
