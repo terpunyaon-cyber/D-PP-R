@@ -211,8 +211,8 @@ local player = Players.LocalPlayer
 
 local defaultJumpPower = 3.89
 local maxJumpPower = 100
-local highJumpPower = 60
-local walkSpeedMultiplier = 3
+local highJumpPower = 25
+local walkSpeedMultiplier = 2
 
 local highJumpActive = false
 local speedActive = false
@@ -282,7 +282,7 @@ RunService.RenderStepped:Connect(function()
             if hum.WalkSpeed ~= 30 then
                 hum.WalkSpeed = 30
             end
-            root.CFrame = root.CFrame + (dir.Unit * (walkSpeedMultiplier / 10))
+            root.CFrame = root.CFrame + (dir.Unit * (walkSpeedMultiplier / 5))
         end
     end
 end)
@@ -367,20 +367,189 @@ MainTab:Toggle({
     end
 })
 
+MainTab:Toggle({
+    Title = "infinity stamina(วิ่งไม่จำกัด)",
+    Default = false,
+    Callback = function(state)
+        if state then
+            if not getgenv().Bypassed then
+                local NetModule = require(ReplicatedStorage.Modules.Core.Net)
+                local func = debug.getupvalue(NetModule.get, 2)
+                debug.setconstant(func, 3, '__Bypass')
+                debug.setconstant(func, 4, '__Bypass')
+                getgenv().Bypassed = true
+            end
+
+            repeat task.wait() until getgenv().Bypassed
+
+            local NetModule = require(ReplicatedStorage.Modules.Core.Net)
+            local SprintModule = require(ReplicatedStorage.Modules.Game.Sprint)
+
+            
+            if staminaConnection then staminaConnection:Disconnect() end
+
+            staminaConnection = RunService.Heartbeat:Connect(function()
+                NetModule.send("set_sprinting_1", true)
+            end)
+
+            local consume_stamina = SprintModule.consume_stamina
+            local SprintBar = debug.getupvalue(consume_stamina, 2).sprint_bar
+            local oldUpdate = SprintBar.update
+
+            SprintBar.update = function(...)
+                if getgenv().InfiniteStamina then
+                    return 1 
+                end
+                return oldUpdate(...)
+            end
+
+            getgenv().InfiniteStamina = true
+        else
+            getgenv().InfiniteStamina = false
+            if staminaConnection then
+                staminaConnection:Disconnect()
+                staminaConnection = nil
+            end
+        end
+    end
+})
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+local DroppedItems = workspace:WaitForChild("DroppedItems")
+
+local Character
+local HRP
+
+local PICKUP_DISTANCE = 350
+local TOUCH_REPEAT = 25
+local pickupEnabled = false
+
+
+local function bindCharacter(char)
+    Character = char
+    HRP = char:WaitForChild("HumanoidRootPart", 5)
+end
+
+if LocalPlayer.Character then
+    bindCharacter(LocalPlayer.Character)
+end
+LocalPlayer.CharacterAdded:Connect(bindCharacter)
+
+
+local function firetouch(partA, partB)
+    if not firetouchinterest or not partA or not partB then return end
+    for i = 1, TOUCH_REPEAT do
+        firetouchinterest(partA, partB, 0)
+        firetouchinterest(partA, partB, 1)
+    end
+end
+
+
+RunService.RenderStepped:Connect(function()
+    if not pickupEnabled then return end
+    if not HRP or not HRP.Parent then return end
+
+    for _, item in ipairs(DroppedItems:GetChildren()) do
+        local zone = item:FindFirstChild("PickUpZone")
+        if zone and zone:IsA("BasePart") then
+            local dist = (HRP.Position - zone.Position).Magnitude
+            if dist <= PICKUP_DISTANCE then
+                firetouch(zone, HRP)
+            end
+        end
+    end
+end)
+
+
+MainTab:Toggle({
+    Title = "Pickup Item",
+    Default = false,
+    Callback = function(state)
+        pickupEnabled = state
+    end
+})
+
+
 MainTab:Section(
     {
         Title = "Snap:"
     }
 )
 
+local EnabledSnapRunning = false
+local SnapThread = nil
+local YoffsetValue = 50
+local func = {}
 
+func["EnabledSnap"] = function()
+    local basePosition = RootPart.Position
+    while EnabledSnapRunning do
+        task.wait()
+        if not EnabledSnapRunning then break end
+        local currentY = RootPart.Position.Y
+        local targetY = basePosition.Y - YoffsetValue
+        local deltaY = targetY - currentY
+        RootPart.CFrame = RootPart.CFrame * CFrame.new(0, deltaY, 0)
+    end
+end
+
+
+local function SetSnapState(value)
+    if EnabledSnapRunning == value then return end
+    EnabledSnapRunning = value
+    if value then
+        if not SnapThread then
+            SnapThread = task.spawn(func["EnabledSnap"])
+        end
+    else
+        SnapThread = nil
+    end
+
+    if MainTab:Get("UndergroundToggle") then
+        MainTab:Get("UndergroundToggle"):SetValue(value)
+    end
+end
+
+
+MainTab:Toggle({
+    Title = "Snap",
+    Value = false,
+    Flag = "UndergroundToggle",
+    Callback = function(value)
+        SetSnapState(value)
+    end
+})
+
+
+MainTab:Keybind({
+    Title = "Snap Keybind",
+    Flag = "snap_keybind",
+    Value = "G",
+    Callback = function()
+        SetSnapState(not EnabledSnapRunning)
+    end
+})
+
+
+MainTab:Slider({
+    Title = "Snap High",
+    Flag = "snap_height",
+    Step = 1,
+    Value = { Min = 1, Max = 50, Default = YoffsetValue },
+    Callback = function(value)
+        YoffsetValue = value
+    end
+})
 
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
 
 local SilentAimEnabled = false
-local ShowFOV = true
+local ShowFOV = false
 local FOV = 200
 local HIGH_VEL_THRESHOLD = 250
 local TargetPartName = "Head"
@@ -419,7 +588,7 @@ CombatTab:Toggle({
 
 CombatTab:Toggle({
     Title = "Show FOV",
-    Default = true,
+    Default = false,
     Callback = function(v)
         ShowFOV = v
         fovCircle.Visible = v
