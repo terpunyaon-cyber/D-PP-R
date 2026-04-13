@@ -367,49 +367,34 @@ MainTab:Toggle({
     end
 })
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SprintModule = require(ReplicatedStorage.Modules.Game.Sprint)
+
+local ConsumeStamina = SprintModule.consume_stamina
+local SprintBar = debug.getupvalue(ConsumeStamina, 2).sprint_bar
+local OldUpdate = SprintBar.update
+
 MainTab:Toggle({
     Title = "infinity stamina(วิ่งไม่จำกัด)",
     Default = false,
     Callback = function(state)
+        getgenv().InfStamina = state
+
         if state then
             if not getgenv().Bypassed then
-                local NetModule = require(ReplicatedStorage.Modules.Core.Net)
-                local func = debug.getupvalue(NetModule.get, 2)
-                debug.setconstant(func, 3, '__Bypass')
-                debug.setconstant(func, 4, '__Bypass')
+                SprintBar.update = function(...)
+                    if getgenv().InfStamina then
+                        return (function()
+                            return 1
+                        end)
+                    end
+                    return OldUpdate(...)
+                end
                 getgenv().Bypassed = true
             end
-
-            repeat task.wait() until getgenv().Bypassed
-
-            local NetModule = require(ReplicatedStorage.Modules.Core.Net)
-            local SprintModule = require(ReplicatedStorage.Modules.Game.Sprint)
-
-            
-            if staminaConnection then staminaConnection:Disconnect() end
-
-            staminaConnection = RunService.Heartbeat:Connect(function()
-                NetModule.send("set_sprinting_1", true)
-            end)
-
-            local consume_stamina = SprintModule.consume_stamina
-            local SprintBar = debug.getupvalue(consume_stamina, 2).sprint_bar
-            local oldUpdate = SprintBar.update
-
-            SprintBar.update = function(...)
-                if getgenv().InfiniteStamina then
-                    return 1 
-                end
-                return oldUpdate(...)
-            end
-
-            getgenv().InfiniteStamina = true
         else
-            getgenv().InfiniteStamina = false
-            if staminaConnection then
-                staminaConnection:Disconnect()
-                staminaConnection = nil
-            end
+            SprintBar.update = OldUpdate
+            getgenv().Bypassed = false
         end
     end
 })
