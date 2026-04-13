@@ -463,51 +463,54 @@ MainTab:Section(
         Title = "Snap:"
     }
 )
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+local Client = Players.LocalPlayer
+local Char = require(ReplicatedStorage.Modules.Core.Char)
 
 local EnabledSnapRunning = false
-local SnapThread = nil
-local YoffsetValue = 20
-local func = {}
+local YoffsetValue = 10
+local snapThread
 
-func["EnabledSnap"] = function()
-    local basePosition = RootPart.Position
-    while EnabledSnapRunning do
-        task.wait()
-        if not EnabledSnapRunning then break end
-        local currentY = RootPart.Position.Y
-        local targetY = basePosition.Y - YoffsetValue
-        local deltaY = targetY - currentY
-        RootPart.CFrame = RootPart.CFrame * CFrame.new(0, deltaY, 0)
-    end
+local function GetDeltaY(baseY, currentY, offset)
+    local targetY = baseY - offset
+    return targetY - currentY
 end
 
+local function SetSnapState(state)
+    EnabledSnapRunning = state
+    getgenv().Snap = state
 
-local function SetSnapState(value)
-    if EnabledSnapRunning == value then return end
-    EnabledSnapRunning = value
-    if value then
-        if not SnapThread then
-            SnapThread = task.spawn(func["EnabledSnap"])
-        end
+    if state then
+        snapThread = task.spawn(function()
+            local BasePosition = Char.get_hrp().Position
+
+            while EnabledSnapRunning do
+                task.wait()
+                local hrp = Char.get_hrp()
+                if hrp then
+                    local currentY = hrp.Position.Y
+                    local deltaY = GetDeltaY(BasePosition.Y, currentY, YoffsetValue)
+                    Char.get():PivotTo(hrp.CFrame * CFrame.new(0, deltaY, 0))
+                end
+            end
+        end)
     else
-        SnapThread = nil
-    end
-
-    if MainTab:Get("UndergroundToggle") then
-        MainTab:Get("UndergroundToggle"):SetValue(value)
+        if snapThread then
+            task.cancel(snapThread)
+            snapThread = nil
+        end
     end
 end
-
 
 MainTab:Toggle({
-    Title = "Snap",
-    Value = false,
-    Flag = "UndergroundToggle",
-    Callback = function(value)
-        SetSnapState(value)
+    Title = "Snap Under Map (มุดดิน)",
+    Default = false,
+    Callback = function(state)
+        SetSnapState(state)
     end
 })
-
 
 MainTab:Keybind({
     Title = "Snap Keybind",
@@ -518,7 +521,6 @@ MainTab:Keybind({
     end
 })
 
-
 MainTab:Slider({
     Title = "Snap High",
     Flag = "snap_height",
@@ -528,6 +530,7 @@ MainTab:Slider({
         YoffsetValue = value
     end
 })
+
 
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
