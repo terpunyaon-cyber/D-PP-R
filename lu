@@ -69,11 +69,11 @@ local avatar = "https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds="
 ..player.UserId.."&size=420x420&format=Png"
 
 local Window = WindUI:CreateWindow({
-    Title = "Salmon X | Premium [ BLOCK SPIN] ",
-    Author = "Salmon-TEAM",
+    Title = "Dipper HUB | Premium [ BLOCK SPIN] ",
+    Author = "Dipper TEAM",
     Folder = "N HUB",
     Size = UDim2.fromOffset(700, 540),
-    Background = "rbxassetid://124013844566613",
+    Background = "rbxassetid://",
     Transparent = true,
     Resizable = true,
 
