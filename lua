@@ -481,7 +481,7 @@ MainTab:Section(
 
 local EnabledSnapRunning = false
 local SnapThread = nil
-local YoffsetValue = 50
+local YoffsetValue = 20
 local func = {}
 
 func["EnabledSnap"] = function()
