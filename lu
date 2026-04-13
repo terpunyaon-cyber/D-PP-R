@@ -73,7 +73,7 @@ local Window = WindUI:CreateWindow({
     Author = "Dipper TEAM",
     Folder = "N HUB",
     Size = UDim2.fromOffset(700, 540),
-    Background = "rbxassetid://",
+    Background = "rbxassetid://124339558110081",
     Transparent = true,
     Resizable = true,
 
@@ -108,7 +108,7 @@ ScreenGui.Parent = CoreGui
 ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
 ToggleBtn.Position = UDim2.new(0, 20, 0.5, -25)
 ToggleBtn.BackgroundTransparency = 1
-ToggleBtn.Image = "rbxassetid://94242028033094"
+ToggleBtn.Image = "rbxassetid://124339558110081"
 ToggleBtn.Active = true
 ToggleBtn.Draggable = true
 ToggleBtn.Parent = ScreenGui
