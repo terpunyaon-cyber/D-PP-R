@@ -171,11 +171,6 @@ local CombatTab = Window:Tab({
     Icon = "swords"
 })
 
-local ModTab = Window:Tab({
-    Title = "Gun mods",
-    Icon = "airplay"
-})
-
 local VisualTab = Window:Tab({
     Title = "Visual",
     Icon = "eye"
