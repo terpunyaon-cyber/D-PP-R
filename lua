@@ -1565,30 +1565,10 @@ CarTab:Toggle({
     end
 })
 
-local CrateController = require(game.ReplicatedStorage.Modules.Game.CrateSystem.Crate)
 
-local EnabledSkip = false
 
-MiscTab:Toggle({
-    Title = "Skip Animation",
-    Flag = "skip_anim",
-    Value = false,
-    Callback = function(Value)
-        EnabledSkip = Value
-        if Value then
-            task.spawn(function()
-                while EnabledSkip do
-                    pcall(function()
-                        if not CrateController.spinning.get() then
-                            CrateController.skip_spin()
-                        end
-                    end)
-                    task.wait(0.2)
-                end
-            end)
-        end
-    end
-})
+
+
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
