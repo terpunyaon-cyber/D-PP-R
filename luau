@@ -16,7 +16,11 @@ local WindUI = loadstring(game:HttpGet(
 local player = game.Players.LocalPlayer
 
 if not getgenv().ACBYPASS then
-    task.spawn(xpcall,function()
+    task.spawn(function()
+    xpcall(function()
+        -- co
+    end, warn)
+end)
         repeat task.wait(2)
             if game.Players.LocalPlayer.PlayerGui:FindFirstChild('SplashScreenGui') 
             and not game.Players.LocalPlayer:GetAttribute('InMenuCharacterCreator') 
